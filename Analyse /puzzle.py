@@ -5,7 +5,7 @@ import re
 from collections import Counter
 
 
-imageCouleurRGB=cv2.imread('exemple_puzzle1.jpeg')
+imageCouleurRGB=cv2.imread('exemple_jouets.jpeg')
 
 imageCouleurHSV=cv2.cvtColor(imageCouleurRGB,cv2.COLOR_BGR2HSV)
 imageCouleurHSVGauss=cv2.GaussianBlur(imageCouleurHSV,(5,5),0)
@@ -99,7 +99,7 @@ def contourFormeColonne(image, colonne):
 CouleurDominanteHSV=plageDeCouleurZoneInterressante(imageCouleurHSVGauss,0,largeurImage,0,longueurImage)
 
 # Transformation de l'image couleur en image noir et blanc
-HSVtoBW(imageCouleurHSVGauss,CouleurDominanteHSV, 35)
+HSVtoBW(imageCouleurHSVGauss,CouleurDominanteHSV, 70)
 
 
 #contour de la forme (parcours en largeur et en hauteur de l'image => plus de précision dans le contour)
