@@ -5,14 +5,15 @@ import re
 from collections import Counter
 
 
-imageCouleurRGB=cv2.imread('exemple_feuilles.jpeg')
+imageCouleurRGB=cv2.imread('exemple_puzzle1.jpeg')
 
 imageCouleurHSV=cv2.cvtColor(imageCouleurRGB,cv2.COLOR_BGR2HSV)
 imageCouleurHSVGauss=cv2.GaussianBlur(imageCouleurHSV,(5,5),0)
 
-
 longueurImage=imageCouleurHSVGauss.shape[1]
 largeurImage=imageCouleurHSVGauss.shape[0]
+
+#---------------------------------------Définition des fonctions--------------------------------------------
 
 #fonction permettant de définir la couleur la plus utilisée dans une zone interressante de l'image
 def plageDeCouleurZoneInterressante(image,haut,bas,gauche,droite):
@@ -45,9 +46,6 @@ def plageDeCouleurZoneInterressante(image,haut,bas,gauche,droite):
     return couleur_plus_frequente
 
 
-# Définition de la couleur dominante de l'image imageCouleurHSVGauss
-CouleurDominanteHSV=plageDeCouleurZoneInterressante(imageCouleurHSVGauss,0,largeurImage,0,longueurImage)
-
 
 #fonction permettant de transformer une image couleur en image noir et blanc en fonction de la couleur dominante de l'image
 def HSVtoBW(image,CouleurDominanteHSV, erreur ):
@@ -61,8 +59,56 @@ def HSVtoBW(image,CouleurDominanteHSV, erreur ):
                 #on remplace le pixel par un pixel noir
                 image[i][j]=[0,0,0]
 
-        
-HSVtoBW(imageCouleurHSVGauss,CouleurDominanteHSV, 50)
+
+
+#---------------------------------------Contour de la forme--------------------------------------------
+
+def contourFormeLigne(image,ligne):
+    tabCouleurPixel=[]
+    #remplir le tableau des couleurs des pixels de la ligne passée en paramètre
+    for i in range (image.shape[1]):
+        tabCouleurPixel.append(image[ligne][i])
+    
+    #parcours du tableau des couleurs des pixels (de 1 à la longueur du tableau)
+    for i in range (0,len(tabCouleurPixel)-1):
+        #si le pixel est d'une couleur différente au pixel précédent
+        if(tabCouleurPixel[i][0]!=tabCouleurPixel[i+1][0]):
+            #le pixel de l'image correspondant à un contour devient rouge
+            image[ligne][i]=[0,0,255]
+
+
+
+def contourFormeColonne(image, colonne):
+    tabCouleurPixel=[]
+    #remplir le tableau des couleurs des pixels de la colonne passée en paramètre
+    for i in range (image.shape[0]):
+        tabCouleurPixel.append(image[i][colonne])
+    
+    #parcours du tableau des couleurs des pixels (de 1 à la longueur du tableau)
+    for i in range (0,len(tabCouleurPixel)-1):
+        #si le pixel est d'une couleur différente au pixel précédent
+        if(tabCouleurPixel[i][0]!=tabCouleurPixel[i+1][0]):
+            #le pixel de l'image correspondant à un contour devient rouge
+            image[i][colonne]=[0,0,255]
+    
+
+
+#---------------------------------------Appel des fonctions--------------------------------------------
+
+# Définition de la couleur dominante de l'image imageCouleurHSVGauss
+CouleurDominanteHSV=plageDeCouleurZoneInterressante(imageCouleurHSVGauss,0,largeurImage,0,longueurImage)
+
+# Transformation de l'image couleur en image noir et blanc
+HSVtoBW(imageCouleurHSVGauss,CouleurDominanteHSV, 35)
+
+
+#contour de la forme (parcours en largeur et en hauteur de l'image => plus de précision dans le contour)
+for i in range (imageCouleurHSVGauss.shape[0]):
+    contourFormeLigne(imageCouleurHSVGauss,i)
+
+for i in range (imageCouleurHSVGauss.shape[1]):
+    contourFormeColonne(imageCouleurHSVGauss,i)
+
 
 
 cv2.imshow("Image Noir et Blanc",imageCouleurHSVGauss)
