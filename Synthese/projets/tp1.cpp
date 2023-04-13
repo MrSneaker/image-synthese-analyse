@@ -1,11 +1,12 @@
 
-#include "src/image.h"
-#include "src/image_io.h"
-#include "src/vec.h"
+#include </home/mateo/COURS/L3/LIFIMA/TP/Proj/projet-lifimage/Synthese/src/image.h>
+#include </home/mateo/COURS/L3/LIFIMA/TP/Proj/projet-lifimage/Synthese/src/image_io.h>
+#include </home/mateo/COURS/L3/LIFIMA/TP/Proj/projet-lifimage/Synthese/src/vec.h>
 #include <limits>
 #include <cmath>
 #include <vector>
 #include <random>
+#include <time.h>
 
 const float inf = std::numeric_limits<float>::infinity();
 
@@ -14,6 +15,8 @@ struct Hit
     float t;     // position sur le rayon ou inf
     Vector n;    // normale du point d'intersection, s'il existe
     Color color; // couleur du point d'intersection, s'il existe
+    bool is_mirror;
+    Color refract;
     operator bool() { return t >= 0 && t < inf; }
 };
 
@@ -27,7 +30,7 @@ struct sphere
 {
     Color col;
     Point p;
-    int r;
+    float r;
     Color refraction;
     bool is_miror;
 };
@@ -98,6 +101,8 @@ Hit intersect_plan(/* parametres du plan */ const plan &p, /* parametres du rayo
     h.t = t;
     h.n = p.n;
     h.color = p.col;
+    h.is_mirror = p.is_miror;
+    h.refract = p.refraction;
     return h;
 }
 
@@ -137,6 +142,8 @@ Hit intersect_sphere(/* parametres de la sphere */ const sphere &s, /* parametre
     Point p = o + t * d;
     h.n = Vector(s.p, p);
     h.color = s.col;
+    h.is_mirror = s.is_miror;
+    h.refract = s.refraction;
     return h;
 }
 
@@ -161,6 +168,7 @@ Hit intersect_aux(const Scene &scene, const Point &o, const Vector &d)
                 plus_proche.color = h.color;
                 plus_proche.color = emission * plus_proche.color * cos_theta / (float)length2(l);
                 plus_proche.color.a = 1;
+                plus_proche.is_mirror = h.is_mirror;
             }
         }
 
@@ -177,6 +185,7 @@ Hit intersect_aux(const Scene &scene, const Point &o, const Vector &d)
             double cos_theta = std ::max(float(0), dot(normalize(plus_proche.n), normalize(l)));
             plus_proche.color = emission * plus_proche.color * cos_theta / (float)length2(l);
             plus_proche.color.a = 1;
+            plus_proche.is_mirror = h.is_mirror;
         }
     }
     return plus_proche;
@@ -194,8 +203,9 @@ bool isInShadow(const Scene &scene, const Point &p, const Vector &d)
     return ombre;
 }
 
-Color eclairage_direct(const Point &p, const Vector &n, const Color &color, const Scene &scene, const Vector &d, bool is_mir, Color refract)
+Color eclairage_direct(const Point &p, const Vector &n, const Color &color, const Scene &scene, const Vector &d, bool is_mir, Color refract, int depth)
 {
+    // std::cout << "depth : " << depth << std::endl;
     Color res = Black();
     bool dans_ombre = false;
     double epsilon = 0.001;
@@ -204,7 +214,7 @@ Color eclairage_direct(const Point &p, const Vector &n, const Color &color, cons
         Point o_ombre = p + epsilon * n;
         Vector d_ombre(o_ombre, s.p);
         dans_ombre = isInShadow(scene, o_ombre, d_ombre);
-        if (dans_ombre)
+        if (dans_ombre && !is_mir)
             continue;
         Vector l = Vector(p, s.p);
         double cos_theta = std ::max(float(0), dot(normalize(n), normalize(l)));
@@ -216,15 +226,24 @@ Color eclairage_direct(const Point &p, const Vector &n, const Color &color, cons
             Hit mir = intersect_aux(scene, o_mir, m);
             if (mir)
             {
-                Color ref = refract + (White() - refract) * pow((1 - cos_theta), 5);
-                res = res + Color(ref.r * mir.color.r, ref.g * mir.color.g, ref.b * mir.color.b);
+                if (((depth > 4) || !mir.is_mirror))
+                {
+                    if (mir.is_mirror)
+                        continue;
+                    Color ref = refract + (White() - refract) * pow((1 - cos_theta), 5);
+                    res = res + Color(ref.r * mir.color.r, ref.g * mir.color.g, ref.b * mir.color.b);
+                }
+                else if (mir.is_mirror)
+                {
+                    Point mir_p = o_mir + mir.t * m;
+                    res = eclairage_direct(mir_p, mir.n, color, scene, m, true, mir.refract, depth + 1);
+                }
             }
         }
         else
         {
             res = res + s.col * color * cos_theta / (float)length2(l);
             res.a = 1;
-            // dans_ombre = true;
             Point o_ombre = p + epsilon * n;
             Vector d_ombre(o_ombre, s.p);
             Hit ombre_intersection = intersect_aux(scene, o_ombre, d_ombre);
@@ -238,7 +257,7 @@ Color eclairage_direct(const Point &p, const Vector &n, const Color &color, cons
     return res;
 }
 
-Hit intersect(const Scene &scene, const Point &o, const Vector &d)
+Hit intersect(const Scene &scene, const Point &o, const Vector &d, int depth)
 {
     Hit plus_proche;
     plus_proche.t = inf;
@@ -254,11 +273,11 @@ Hit intersect(const Scene &scene, const Point &o, const Vector &d)
             if (scene.spheres[i].is_miror)
             {
                 Color refract = scene.spheres[i].refraction;
-                plus_proche.color = plus_proche.color * eclairage_direct(p, plus_proche.n, h.color, scene, d, true, refract);
+                plus_proche.color = plus_proche.color + eclairage_direct(p, plus_proche.n, h.color, scene, d, true, refract, depth);
             }
             else
             {
-                plus_proche.color = plus_proche.color + eclairage_direct(p, plus_proche.n, h.color, scene, d, false, Black());
+                plus_proche.color = plus_proche.color + eclairage_direct(p, plus_proche.n, h.color, scene, d, false, Black(), depth);
             }
         }
     }
@@ -273,11 +292,11 @@ Hit intersect(const Scene &scene, const Point &o, const Vector &d)
         if (scene.p.is_miror)
         {
             Color refract = scene.p.refraction;
-            plus_proche.color = eclairage_direct(p, plus_proche.n, h.color, scene, d, true, refract);
+            plus_proche.color = eclairage_direct(p, plus_proche.n, h.color, scene, d, true, refract, depth + 1);
         }
         else
         {
-            plus_proche.color = eclairage_direct(p, plus_proche.n, h.color, scene, d, false, Black());
+            plus_proche.color = eclairage_direct(p, plus_proche.n, h.color, scene, d, false, Black(), depth);
         }
     }
     return plus_proche;
@@ -290,45 +309,63 @@ int main()
     Point o = Point(0, 0, 0);
 
     // cree l'image resultat
-    Image image(1024, 712); // par exemple...
-    sphere s, s1, s2;
-    s.r = 2;
-    s.p = Point(2, 0.5, -3);
-    s.col = Color(1, 1, 1);
-    s.is_miror = false;
-    s.refraction = Color(0.02, 0.02, 0.02);
+    Image image(1024, 1024); // par exemple...
+    sphere s, s1, s2, s3;
+    s.r = 1;
+    s.p = Point(-0.5, 1, -2.5);
+    s.col = Color(1, 0, 0);
+    s.is_miror = true;
+    s.refraction = Color(0.98, 0.82, 0.76);
 
-    s1.r = 1;
-    s1.p = Point(-1, 0.25, -2);
+    s1.r = 0.5;
+    s1.p = Point(-1.5, 0, -1.5);
     s1.is_miror = false;
     s1.col = Color(0.6, 0.3, 0.2);
     s1.refraction = Color(0, 0, 0);
 
+    s2.r = 0.3;
+    s2.p = Point(-0.75, 0.1, -1.9);
+    s2.col = White();
+    s2.is_miror = false;
+    s2.refraction = Color(0, 0, 0);
+
+    s3.is_miror = true;
+    s3.col = Color(1, 0, 0);
+    s3.p = Point(1, 0.4, -2);
+    s3.refraction = Color(0.98, 0.82, 0.76);
+    s3.r = 1;
+
     plan p2;
-    p2.col = Color(0, 0, 0);
+    p2.col = Color(0.5, 0.5, 0.5);
     p2.a = Point(0, -1, 0);
     p2.n = Vector(0, 1, 0);
     p2.refraction = Color(0.98, 0.82, 0.76);
     p2.is_miror = true;
 
-    Source src, src2;
-    src.p = Point(0, 1, 3);
-    src.col = Color(5, 5, 5);
+    Source src, src2, src3;
+    src.p = Point(-0.5, 0.75, -3);
+    src.col = Color(1, 1, 1);
+    src2.p = Point(0, 0.75, -2);
+    src2.col = White();
     Scene sc;
     sc.spheres.push_back(s);
     sc.spheres.push_back(s1);
+    sc.spheres.push_back(s2);
+    sc.spheres.push_back(s3);
 
-    genere_sources(sc.sources, o, Vector(1, 0, 0), Vector(0, 1, 0), White(), 100);
+    genere_sources(sc.sources, o, Vector(1, 0, 0), Vector(0, 1, 0), White(), 10);
+    sc.sources.push_back(src);
+    sc.sources.push_back(src2);
 
     sc.p = p2;
 #pragma omp parallel for schedule(dynamic, 1)
     for (int py = 0; py < image.height(); py++)
         for (int px = 0; px < image.width(); px++)
         {
-            // std::cout << "boucle" << px << " - " << py << std::endl;
+            // std::cout << "px-py : " << px << " - " << py << std::endl;
             std::default_random_engine rng;
             std::uniform_real_distribution<float> u;
-            int aa = 1;
+            int aa = 5;
             Color color;
             for (int pa = 0; pa < aa; pa++)
             {
@@ -340,15 +377,13 @@ int main()
                 float x = (2.0 * (px + ux) / image.width() - 1.0) * aspect_ratio;
                 Point e(x, y, -1);       // extremite
                 Vector d = Vector(o, e); // direction : extremite - origine
-                // color = Black();
                 Hit plus_proche;
                 plus_proche.t = inf;
                 plus_proche.color = color;
                 Hit intersection;
-                intersection = intersect(sc, o, d);
+                intersection = intersect(sc, o, d, 0);
                 if (intersection)
                 {
-                    // plus_proche = intersection;
                     color = color + intersection.color;
                 }
             }
