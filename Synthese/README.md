@@ -25,14 +25,17 @@
 ## Image exemple
 
 - Scène avec un plan, des sphères. Nombre de lumières : dome = 64 et couleur blanche, panneau = 32 et couleur (1,1,0) (jaune), point simple = 2 (1,0,0) (rouge) et (1,0,1) (violet), total = 98.
+
 ![Image simple](Image/image_simple.png)
 
 
-- Même image avec un anti-aliasing de 10 : ![Image simple aa 10](Image/image_simple_aa%3D10.png)
+- Même image avec un anti-aliasing de 10 : 
+![Image simple aa 10](Image/image_simple_aa%3D10.png)
 
 - Même scène mais les deux sphères du fond sont miroirs : Paramètres des miroirs : couleur de refraction : (0.98, 0.82, 0.76) (refraction cuivre). 
 ![Image cool](Image/image_cool.jpg)
-- Même chose avec un anti-aliasing de 10 : ![Image cool aa 10](Image/image_cool_aa%3D10.png)
+- Même chose avec un anti-aliasing de 10 : 
+![Image cool aa 10](Image/image_cool_aa%3D10.png)
 
 Ces images sont toutes disponible en HDR dans le dossier "Image" de l'archive.
 
