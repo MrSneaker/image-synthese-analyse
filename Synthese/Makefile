@@ -6,7 +6,7 @@ ifndef config
 endif
 export config
 
-PROJECTS := tp1
+PROJECTS := tp1 tp2
 
 .PHONY: all clean help $(PROJECTS)
 
@@ -22,6 +22,7 @@ tp2:
 
 clean:
 	@${MAKE} --no-print-directory -C . -f tp1.make clean
+	@${MAKE} --no-print-directory -C . -f tp2.make clean
 
 help:
 	@echo "Usage: make [config=name] [target]"
