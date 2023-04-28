@@ -98,18 +98,6 @@ void genere_dome(int n, std::vector<Vector> &directions)
                           std ::sin(phi) * sin_theta);
         directions.push_back(d);
     }
-    // int rac_n = sqrt(n);
-    // for (int i = 0; i < rac_n; i++)
-    //     for (int j = 0; j < rac_n; j++)
-    //     {
-    //         float cos_theta = float(i) / float(rac_n);
-    //         float sin_theta = std ::sqrt(1 - cos_theta * cos_theta);
-    //         float phi = float(j) / float(rac_n) * float(M_PI * 2);
-    //         Vector d = Vector(std ::cos(phi) * sin_theta,
-    //                           cos_theta,
-    //                           std ::sin(phi) * sin_theta);
-    //         directions.push_back(d);
-    //     }
 }
 
 Hit intersect_plan(/* parametres du plan */ const plan &p, /* parametres du rayon */ const Point &o, const Vector &d)
@@ -337,7 +325,6 @@ Color eclairage_direct(const Point &p, const Vector &n, const Color &color, cons
 
 Color eclairage_direct_dome(const Point &p, const Vector &n, const Color &color, const Scene &scene, const Vector &d, bool is_mir, Color refract, int depth)
 {
-    // std::cout << "depth : " << depth << std::endl;
     bool dans_ombre = false;
     bool dans_ombre_mir = false;
     double epsilon = 0.001;
@@ -353,7 +340,6 @@ Color eclairage_direct_dome(const Point &p, const Vector &n, const Color &color,
 
         if (is_mir)
         {
-            // std::cout << "n : " << n << std::endl;
             Point o_mir = p + epsilon * n;
             Vector m = reflect(n, d);
             Hit mir = intersect_aux_dome(scene, o_mir, m, dir);
@@ -362,7 +348,6 @@ Color eclairage_direct_dome(const Point &p, const Vector &n, const Color &color,
             {
                 if (((depth > MAX_DEPTH) || !mir.is_mirror))
                 {
-                    // std::cout << depth << std::endl;
                     if (mir.is_mirror)
                     {
                         res = scene.d.col * refract;
@@ -375,9 +360,7 @@ Color eclairage_direct_dome(const Point &p, const Vector &n, const Color &color,
                         if (dans_ombre_mir)
                             continue;
                         Color ref = refract + (White() - refract) * pow((1 - cos_theta), 5);
-                        // std::cout << "mir col : " << mir.color.r << " - " << mir.color.g << " - " << mir.color.b << std::endl;
                         res = res + Color(ref.r * mir.color.r, ref.g * mir.color.g, ref.b * mir.color.b);
-                        // std::cout << "res : " << res.r << " - " << res.g << " - " << res.b << std::endl;
                     }
                 }
                 else if (mir.is_mirror)
@@ -462,6 +445,52 @@ Hit intersect(const Scene &scene, const Point &o, const Vector &d, int depth)
     return plus_proche;
 }
 
+void make_image(Image image, Scene scene, int aa)
+{
+    int nb_pix_traite = 0;
+    int taille = image.height() * image.width();
+
+#pragma omp parallel for schedule(dynamic, 1) shared(nb_pix_traite)
+    for (int py = 0; py < image.height(); py++)
+        for (int px = 0; px < image.width(); px++)
+        {
+            std::default_random_engine rng;
+            std::uniform_real_distribution<float> u;
+            Color color = Black();
+            for (int pa = 0; pa < aa; pa++)
+            {
+                float ux = u(rng);
+                float uy = u(rng);
+                Point o = Point(0, 0, 0); // origine
+                float aspect_ratio = (float)image.width() / image.height();
+                float y = (2.0 * (py + uy) / image.height() - 1.0);
+                float x = (2.0 * (px + ux) / image.width() - 1.0) * aspect_ratio;
+                Point e(x, y, -1);       // extremite
+                Vector d = Vector(o, e); // direction : extremite - origine
+                Hit intersection;
+                intersection = intersect(scene, o, d, 0);
+                if (intersection)
+                {
+                    color = color + intersection.color;
+                }
+                else
+                    color = color + scene.d.col;
+            }
+            image(px, py) = Color(color / aa, 1);
+#pragma omp atomic
+            nb_pix_traite++;
+            double ratio = ((double)nb_pix_traite / (double)taille);
+            if (ratio == 0.25)
+                std::cout << "image calculée à 25%" << std::endl;
+            if (ratio == 0.5)
+                std::cout << "image calculée à 50%" << std::endl;
+            if (ratio == 0.75)
+                std::cout << "image calculée à 75%" << std::endl;
+        }
+    write_image_hdr(image, "image.hdr");
+    write_image(image, "image.png");
+}
+
 int main()
 {
     std::cout << "process..." << std::endl;
@@ -470,18 +499,17 @@ int main()
 
     // cree l'image resultat
     Image image(748, 512); // par exemple...
-    int taille = 748 * 512;
     sphere s, s1, s2, s3;
 
     s.r = 1;
     s.p = Point(1, 0, -4);
     s.col = Color(1, 0, 0);
-    s.is_miror = true;
+    s.is_miror = false;
     s.refraction = Color(0.98, 0.82, 0.76);
 
     s1.r = 1;
     s1.p = Point(-1, 0, -4);
-    s1.is_miror = true;
+    s1.is_miror = false;
     s1.col = Color(0.6, 0.3, 0.2);
     s1.refraction = Color(0.98, 0.82, 0.76);
 
@@ -517,7 +545,7 @@ int main()
     sc.spheres.push_back(s3);
 
     // panneau de lumière.
-    genere_sources(sc.sources, o, Vector(-1, 0, 0), Vector(1, 2, 0), Color(1, 1, 0), 64);
+    genere_sources(sc.sources, o, Vector(-1, 0, 0), Vector(1, 2, 0), Color(1, 1, 0), 32);
     sc.sources.push_back(src);
     sc.sources.push_back(src2);
 
@@ -530,49 +558,7 @@ int main()
 
     sc.p = p2;
 
-    int nb_pix_traite = 0;
+    make_image(image, sc, 1);
 
-#pragma omp parallel for schedule(dynamic, 1) shared(nb_pix_traite)
-    for (int py = 0; py < image.height(); py++)
-        for (int px = 0; px < image.width(); px++)
-        {
-            // std::cout << "px-py : " << px << " - " << py << std::endl;
-            std::default_random_engine rng;
-            std::uniform_real_distribution<float> u;
-            int aa = 10;
-            Color color = Black();
-            for (int pa = 0; pa < aa; pa++)
-            {
-                float ux = u(rng);
-                float uy = u(rng);
-                Point o = Point(0, 0, 0); // origine
-                float aspect_ratio = (float)image.width() / image.height();
-                float y = (2.0 * (py + uy) / image.height() - 1.0);
-                float x = (2.0 * (px + ux) / image.width() - 1.0) * aspect_ratio;
-                Point e(x, y, -1);       // extremite
-                Vector d = Vector(o, e); // direction : extremite - origine
-                Hit intersection;
-                intersection = intersect(sc, o, d, 0);
-                if (intersection)
-                {
-                    color = color + intersection.color;
-                }
-                else
-                    color = sc.d.col * aa;
-            }
-            image(px, py) = Color(color / aa, 1);
-#pragma omp atomic
-            nb_pix_traite++;
-            double ratio = ((double)nb_pix_traite / (double)taille);
-            if (ratio == 0.25)
-                std::cout << "image calculée à 25%" << std::endl;
-            if (ratio == 0.5)
-                std::cout << "image calculée à 50%" << std::endl;
-            if (ratio == 0.75)
-                std::cout << "image calculée à 75%" << std::endl;
-            if (ratio == 0.9)
-                std::cout << "image calculée à 90%" << std::endl;
-        }
-    write_image_hdr(image, "image_cool2.hdr");
     return 0;
 }

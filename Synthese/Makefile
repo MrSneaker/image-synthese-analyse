@@ -22,7 +22,6 @@ tp2:
 
 clean:
 	@${MAKE} --no-print-directory -C . -f tp1.make clean
-	@${MAKE} --no-print-directory -C . -f tp2.make clean
 
 help:
 	@echo "Usage: make [config=name] [target]"
