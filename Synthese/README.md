@@ -44,6 +44,21 @@
 Ces images sont toutes disponibles en HDR dans le dossier "Image" de l'archive.
 
 
+## Ce qui marche bien
+
+De notre point de vue, toutes les fonctionnalités (miroirs, différents éclairages, ombres/pénombres) réalisées marchent correctement, et n'occasionnent pas de bug peu importe la disposition des objets etc. Le code fonctionne assez rapidement avec une centaine de lumières et plus.
+
+## Ce qui marche moins bien / ce qu'on aurait aimé faire.
+
+Le seul point que l'on aurait aimé améliorer est peut être l'impression de relief/profondeur de champ. 
+Aussi, peut-être encore améliorer la vitesse d'execution pour des images longues à calculer (avec une limite de récursivité plus grande, beaucoup de lumières etc.).
+
+## Retour sur le TP
+
+Munoz Matéo :
+
+Il n'y a pas de partie que j'ai trouvé trop difficile. Le cours aide énormément et complète très bien le tp, il est très facile de trouver les informations. Je ne pense pas personellement qu'il y ait de choses très importantes à rajouter, sauf peut être un schéma dans la partie miroir pour expliquer la construction d'un reflets, qui je pense m'aurai aidé à comprendre plus vite.
+
 ## Compilation du code
 Pour compiler le code : ouvrez un terminal à la racine de l'archive et tapez la commande suivante : 
 ```bash 
